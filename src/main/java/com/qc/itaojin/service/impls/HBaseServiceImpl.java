@@ -33,6 +33,14 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
 
     private static final String DEFAULT_FAMILY = "f1";
 
+    ThreadLocal<Connection> connectionThreadLocal = new ThreadLocal<>();
+
+    ThreadLocal<Boolean> useSingleConn = new ThreadLocal<>();
+
+    public HBaseServiceImpl(){
+        useSingleConn.set(false);
+    }
+
     /**
      * 列族
      * */
@@ -54,11 +62,54 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
         return this.configuration;
     }
 
+    private Connection getConn(){
+        // 同一线程，较多使用Hbase连接时，可以采用始终使用单一连接的方案
+        if(useSingleConn.get()){
+            if(connectionThreadLocal.get() == null){
+                try {
+                    connectionThreadLocal.set(ConnectionFactory.createConnection(getConfiguration()));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            return connectionThreadLocal.get();
+        }
+
+        try {
+            return ConnectionFactory.createConnection(getConfiguration());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    @Override
+    public void useSingleConn() {
+        this.useSingleConn.set(true);
+    }
+
+    @Override
+    public void closeSingleConn(){
+        if(connectionThreadLocal.get() != null){
+            try {
+                connectionThreadLocal.get().close();
+                connectionThreadLocal.set(null);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        this.useSingleConn.set(false);
+    }
+
     @Override
     public boolean updateVersions(String nameSpace, String table, String family, int versions) {
         table = StringUtils.contact(nameSpace, ":", table);
+        Connection connection = null;
         try {
-            Connection connection = ConnectionFactory.createConnection(getConfiguration());
+            connection = getConn();
             Admin admin = connection.getAdmin();
             TableName tableName = TableName.valueOf(table);
             if(admin.tableExists(tableName)){
@@ -72,6 +123,14 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if(!useSingleConn.get() && connection!=null){
+                try {
+                    connection.close();
+                } catch (IOException e) {
+
+                }
+            }
         }
         return false;
     }
