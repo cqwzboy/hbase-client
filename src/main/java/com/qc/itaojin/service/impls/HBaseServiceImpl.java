@@ -6,12 +6,13 @@ import com.qc.itaojin.service.BaseService;
 import com.qc.itaojin.service.IHBaseService;
 import com.qc.itaojin.util.StringUtils;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.MapUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.Map;
  * Created by fuqinqin on 2018/7/2.
  */
 @Data
+@Slf4j
 public class HBaseServiceImpl extends BaseService implements IHBaseService {
 
     private ItaojinHBaseConfig hBaseConfig;
@@ -50,6 +52,28 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
         }
 
         return this.configuration;
+    }
+
+    @Override
+    public boolean updateVersions(String nameSpace, String table, String family, int versions) {
+        table = StringUtils.contact(nameSpace, ":", table);
+        try {
+            Connection connection = ConnectionFactory.createConnection(getConfiguration());
+            Admin admin = connection.getAdmin();
+            TableName tableName = TableName.valueOf(table);
+            if(admin.tableExists(tableName)){
+                HColumnDescriptor hColumnDescriptor = new HColumnDescriptor(family);
+                hColumnDescriptor.setVersions(versions, versions);
+                admin.modifyColumn(tableName, hColumnDescriptor);
+                log.info("updateVersions success, tables={}", table);
+                return true;
+            }else{
+                log.info("HBase table {} is not existed", table);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override

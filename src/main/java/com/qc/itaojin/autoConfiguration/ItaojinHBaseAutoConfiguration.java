@@ -28,7 +28,7 @@ public class ItaojinHBaseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IHBaseService helloService(){
+    public IHBaseService ihBaseService(){
         IHBaseService hBaseService = new HBaseServiceImpl();
         ((HBaseServiceImpl) hBaseService).setHBaseConfig(hBaseConfig);
         ((HBaseServiceImpl) hBaseService).setZkConfig(zkConfig);

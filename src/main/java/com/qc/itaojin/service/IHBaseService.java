@@ -19,4 +19,9 @@ public interface IHBaseService {
      * */
     boolean delete(String nameSpace, String tableName, String rowKey);
 
+    /**
+     * 修改列族的版本数
+     * */
+    boolean updateVersions(String nameSpace, String tableName, String fi, int versions);
+
 }
