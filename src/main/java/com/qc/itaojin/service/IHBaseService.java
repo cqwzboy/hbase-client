@@ -1,5 +1,7 @@
 package com.qc.itaojin.service;
 
+import com.qc.itaojin.exception.ItaojinHBaseException;
+
 import java.util.Map;
 
 /**
@@ -22,16 +24,16 @@ public interface IHBaseService {
     /**
      * 插入/修改 数据，所有的列数据都放在 f1 列族下
      * */
-    boolean update(String nameSpace, String table, String rowKey, Map<String, String> columns);
+    void update(String nameSpace, String table, String rowKey, Map<String, String> columns) throws ItaojinHBaseException;
 
     /**
      * 删除一行数据
      * */
-    boolean delete(String nameSpace, String tableName, String rowKey);
+    void delete(String nameSpace, String tableName, String rowKey) throws ItaojinHBaseException;
 
     /**
      * 修改列族的版本数
      * */
-    boolean updateVersions(String nameSpace, String tableName, String fi, int versions);
+    void updateVersions(String nameSpace, String tableName, String fi, int versions) throws ItaojinHBaseException;
 
 }
