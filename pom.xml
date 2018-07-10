@@ -19,7 +19,7 @@
     <spring.boot.version>1.5.14.RELEASE</spring.boot.version>
     <hadoop.version>2.6.0</hadoop.version>
     <hbase.version>1.4.4</hbase.version>
-    <generic-util.version>1.0-SNAPSHOT</generic-util.version>
+    <bigdata-common.version>1.0-SNAPSHOT</bigdata-common.version>
   </properties>
 
   <dependencies>
@@ -38,8 +38,8 @@
 
     <dependency>
       <groupId>com.qc.itaojin</groupId>
-      <artifactId>generic-util</artifactId>
-      <version>${generic-util.version}</version>
+      <artifactId>bigdata-common</artifactId>
+      <version>${bigdata-common.version}</version>
       <scope>provided</scope>
     </dependency>
 
