@@ -10,8 +10,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 public class ItaojinHBaseConfig {
 
-    private static final int DEFAULT_PORT = 2181;
+    private static final String PARENT_DIR = "/hbase";
 
+    /**
+     * 如果指定了该参数，则按照非高可用HBase的形式创建连接，反之则按照HA形式创建
+     * */
     private String master;
+
+    /**
+     * hbase在ZooKeeper注册的父级Znode
+     * */
+    private String parent = PARENT_DIR;
 
 }

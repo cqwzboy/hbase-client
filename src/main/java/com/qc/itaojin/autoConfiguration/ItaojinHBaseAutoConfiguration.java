@@ -1,5 +1,6 @@
 package com.qc.itaojin.autoConfiguration;
 
+import com.qc.itaojin.common.HBaseConnectionPool;
 import com.qc.itaojin.config.ItaojinHBaseConfig;
 import com.qc.itaojin.config.ItaojinZKConfig;
 import com.qc.itaojin.service.IHBaseService;
@@ -30,9 +31,19 @@ public class ItaojinHBaseAutoConfiguration {
     @ConditionalOnMissingBean
     public IHBaseService ihBaseService(){
         IHBaseService hBaseService = new HBaseServiceImpl();
-        ((HBaseServiceImpl) hBaseService).setHBaseConfig(hBaseConfig);
-        ((HBaseServiceImpl) hBaseService).setZkConfig(zkConfig);
+        ((HBaseServiceImpl) hBaseService).setPool(hBaseConnectionPool());
         return hBaseService;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public HBaseConnectionPool hBaseConnectionPool(){
+        HBaseConnectionPool hBaseConnectionPool = new HBaseConnectionPool();
+        hBaseConnectionPool.setHBaseConfig(hBaseConfig);
+        hBaseConnectionPool.setZkConfig(zkConfig);
+        // 初始化
+        hBaseConnectionPool.init();
+        return hBaseConnectionPool;
     }
 
 }

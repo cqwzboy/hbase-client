@@ -1,16 +1,13 @@
 package com.qc.itaojin.service.impls;
 
+import com.qc.itaojin.common.HBaseConnectionPool;
 import com.qc.itaojin.common.HBaseErrorCode;
-import com.qc.itaojin.config.ItaojinHBaseConfig;
-import com.qc.itaojin.config.ItaojinZKConfig;
 import com.qc.itaojin.exception.ItaojinHBaseException;
 import com.qc.itaojin.service.BaseService;
 import com.qc.itaojin.service.IHBaseService;
 import com.qc.itaojin.util.StringUtils;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
@@ -29,10 +26,7 @@ import java.util.Map;
 @Slf4j
 public class HBaseServiceImpl extends BaseService implements IHBaseService {
 
-    private ItaojinHBaseConfig hBaseConfig;
-    private ItaojinZKConfig zkConfig;
-
-    private Configuration configuration;
+    private HBaseConnectionPool pool;
 
     private static final String DEFAULT_FAMILY = "f1";
 
@@ -49,43 +43,18 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
      * */
     private String family = DEFAULT_FAMILY;
 
-    private Configuration genConfiguration(){
-        Configuration configuration = HBaseConfiguration.create();
-        configuration.set("hbase.zookeeper.property.clientPort", String.valueOf(zkConfig.getPort()));
-        configuration.set("hbase.zookeeper.quorum", zkConfig.getQuorum());
-        configuration.set("hbase.master", hBaseConfig.getMaster());
-        return configuration;
-    }
-
-    private Configuration getConfiguration(){
-        if(this.configuration == null){
-            this.configuration = genConfiguration();
-        }
-
-        return this.configuration;
-    }
 
     private Connection getConn(){
         // 同一线程，较多使用Hbase连接时，可以采用始终使用单一连接的方案
         if(useSingleConn.get()){
             if(connectionThreadLocal.get() == null){
-                try {
-                    connectionThreadLocal.set(ConnectionFactory.createConnection(getConfiguration()));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                connectionThreadLocal.set(pool.getConn());
             }
 
             return connectionThreadLocal.get();
         }
 
-        try {
-            return ConnectionFactory.createConnection(getConfiguration());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return null;
+        return pool.getConn();
     }
 
     @Override
@@ -163,7 +132,7 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
 
         HTable hTable = null;
         try {
-            hTable = new HTable(getConfiguration(), tableName);
+            hTable = new HTable(pool.getConfiguration(), tableName);
             for(Map.Entry<String, String> entry : columns.entrySet()){
                 Put put = new Put(toBytes(rowKey));
                 String columnName = entry.getKey();
@@ -200,7 +169,7 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
         String tableName = StringUtils.contact(nameSpace, ":", table);
         HTable hTable = null;
         try {
-            hTable = new HTable(getConfiguration(), tableName);
+            hTable = new HTable(pool.getConfiguration(), tableName);
             List<Delete> list = new ArrayList<>();
             Delete delete = new Delete(toBytes(rowKey));
             list.add(delete);
