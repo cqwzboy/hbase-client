@@ -65,12 +65,8 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
     @Override
     public void closeSingleConn(){
         if(connectionThreadLocal.get() != null){
-            try {
-                connectionThreadLocal.get().close();
-                connectionThreadLocal.set(null);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            pool.close(connectionThreadLocal.get());
+            connectionThreadLocal.set(null);
         }
 
         this.useSingleConn.set(false);
@@ -112,11 +108,7 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
             throw new ItaojinHBaseException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, nameSpace, table, e.getMessage());
         } finally {
             if(!useSingleConn.get() && connection!=null){
-                try {
-                    connection.close();
-                } catch (IOException e) {
-
-                }
+                pool.close(connection);
             }
         }
     }
