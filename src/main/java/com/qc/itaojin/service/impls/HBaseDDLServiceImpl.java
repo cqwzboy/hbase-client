@@ -11,9 +11,11 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.springframework.util.Assert;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * @desc
@@ -67,6 +69,13 @@ public class HBaseDDLServiceImpl extends HBaseBaseServiceImpl implements IHBaseD
             if(hColumnDescriptors != null){
                 for (HColumnDescriptor hColumnDescriptor : hColumnDescriptors) {
                     System.out.println(">>>>>>>>>>>>>>>>>>>>>>>.. "+hColumnDescriptor.getNameAsString());
+                    Map<ImmutableBytesWritable, ImmutableBytesWritable> values = hColumnDescriptor.getValues();
+                    for(Map.Entry<ImmutableBytesWritable, ImmutableBytesWritable> entry : values.entrySet()){
+                        ImmutableBytesWritable key = entry.getKey();
+                        ImmutableBytesWritable value = entry.getValue();
+                        System.out.println("key: "+new String(key.get(), "UTF-8"));
+                        System.out.println("value: "+new String(value.get(), "UTF-8"));
+                    }
                 }
             }
         } catch (IOException e) {
