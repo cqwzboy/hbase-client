@@ -1,20 +1,23 @@
 package com.qc.itaojin.service.impls;
 
-import com.qc.itaojin.common.HBaseConnectionPool;
 import com.qc.itaojin.common.HBaseErrorCode;
 import com.qc.itaojin.exception.ItaojinHBaseException;
-import com.qc.itaojin.service.BaseService;
+import com.qc.itaojin.service.HBaseBaseService;
 import com.qc.itaojin.service.IHBaseService;
+import com.qc.itaojin.util.ReflectUtils;
 import com.qc.itaojin.util.StringUtils;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.util.Assert;
+import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +27,7 @@ import java.util.Map;
  */
 @Data
 @Slf4j
-public class HBaseServiceImpl extends BaseService implements IHBaseService {
-
-    private HBaseConnectionPool pool;
+public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService {
 
     private static final String DEFAULT_FAMILY = "f1";
 
@@ -94,18 +95,11 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
                 log.info("updateVersions success, tables={}", table);
             }else{
                 log.info("HBase table {} is not existed", table);
-                throw new ItaojinHBaseException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, nameSpace, table,
+                throw new ItaojinHBaseException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, table,
                         StringUtils.contact("HBase table {} is not existed", table));
             }
         } catch (IOException e) {
-            e.printStackTrace();
-            String message = e.getMessage();
-            if(e instanceof TableNotFoundException){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }else if(message.contains("was not found") && message.contains("Table")){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }
-            throw new ItaojinHBaseException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, nameSpace, table, e.getMessage());
+            throwException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, e, table);
         } finally {
             if(!useSingleConn.get() && connection!=null){
                 pool.close(connection);
@@ -124,7 +118,7 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
 
         HTable hTable = null;
         try {
-            hTable = new HTable(pool.getConfiguration(), tableName);
+            hTable = getHTable(tableName);
             for(Map.Entry<String, String> entry : columns.entrySet()){
                 Put put = new Put(toBytes(rowKey));
                 String columnName = entry.getKey();
@@ -133,22 +127,9 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
                 hTable.put(put);
             }
         } catch (IOException e) {
-            e.printStackTrace();
-            String message = e.getMessage();
-            if(e instanceof TableNotFoundException){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }else if(message.contains("was not found") && message.contains("Table")){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }
-            throw new ItaojinHBaseException(HBaseErrorCode.UPDATE_FAILED, nameSpace, table, e.getMessage());
+            throwException(HBaseErrorCode.UPDATE_FAILED, e, tableName);
         } finally {
-            if(hTable != null){
-                try {
-                    hTable.close();
-                } catch (IOException e) {
-
-                }
-            }
+            closeHTable(hTable);
         }
     }
 
@@ -161,7 +142,7 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
         String tableName = StringUtils.contact(nameSpace, ":", table);
         HTable hTable = null;
         try {
-            hTable = new HTable(pool.getConfiguration(), tableName);
+            hTable = getHTable(tableName);
             List<Delete> list = new ArrayList<>();
             Delete delete = new Delete(toBytes(rowKey));
             list.add(delete);
@@ -169,22 +150,60 @@ public class HBaseServiceImpl extends BaseService implements IHBaseService {
             hTable.delete(list);
             log.info("delete success");
         } catch (IOException e) {
-            e.printStackTrace();
-            String message = e.getMessage();
-            if(e instanceof TableNotFoundException){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }else if(message.contains("was not found") && message.contains("Table")){
-                throw new ItaojinHBaseException(HBaseErrorCode.TABLE_NOT_FOUND, nameSpace, table, e.getMessage());
-            }
-            throw new ItaojinHBaseException(HBaseErrorCode.DELETE_FAILED, nameSpace, table, e.getMessage());
+            throwException(HBaseErrorCode.DELETE_FAILED, e, tableName);
         } finally {
-            if(hTable != null){
-                try {
-                    hTable.close();
-                } catch (IOException e) {
-
-                }
-            }
+            closeHTable(hTable);
         }
+    }
+
+    @Override
+    public <T> List<T> scanAll(String nameSpace, String tableName, Class<T> clazz) throws ItaojinHBaseException {
+        Assert.hasLength(nameSpace, "nameSpace must not be null");
+        Assert.hasLength(tableName, "tableName must not be null");
+        Assert.notNull(clazz, "clazz must not be null");
+
+        HTable hTable = null;
+        ResultScanner resultScanner = null;
+
+        try{
+            hTable = getHTable(buildTableName(nameSpace, tableName));
+            Scan scan = new Scan();
+            resultScanner = hTable.getScanner(scan);
+
+            if(resultScanner == null){
+                return null;
+            }
+
+            // get all fields
+            Field[] fields = clazz.getDeclaredFields();
+            List<T> list = new ArrayList<>();
+            for (Result result : resultScanner) {
+                T t = clazz.newInstance();
+                for (Field field : fields) {
+                    String fieldName = field.getName();
+                    String set = ReflectUtils.buildSet(fieldName);
+                    // trans to hump format
+                    fieldName = StringUtils.converseToHump(fieldName);
+                    byte[] bys = result.getValue(Bytes.toBytes("f1"), Bytes.toBytes(fieldName));
+                    if(bys == null){
+                        continue;
+                    }
+
+                    String value = new String(bys);
+                    Method method = ReflectionUtils.findMethod(clazz, set, ReflectUtils.mapClass(field.getType()));
+                    method.invoke(t, ReflectUtils.transValue(field, value));
+                }
+                list.add(t);
+            }
+
+            return list;
+        } catch (Exception e) {
+            throwException(HBaseErrorCode.UPDATE_FAILED, e, StringUtils.contact(nameSpace, ":", tableName));
+        } finally {
+            closeHTable(hTable);
+            closeResultScanner(resultScanner);
+        }
+
+        return null;
     }
 }

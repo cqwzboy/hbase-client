@@ -1,7 +1,10 @@
 package com.qc.itaojin.service;
 
 import com.qc.itaojin.exception.ItaojinHBaseException;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,5 +38,10 @@ public interface IHBaseService {
      * 修改列族的版本数
      * */
     void updateVersions(String nameSpace, String tableName, String fi, int versions) throws ItaojinHBaseException;
+
+    /**
+     * 扫描全表
+     * */
+    <T> List<T> scanAll(String nameSpace, String tableName, Class<T> clazz) throws ItaojinHBaseException;
 
 }
