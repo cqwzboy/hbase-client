@@ -1,8 +1,6 @@
 package com.qc.itaojin.service;
 
 import com.qc.itaojin.exception.ItaojinHBaseException;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
 
 import java.util.List;
 import java.util.Map;
@@ -42,6 +40,6 @@ public interface IHBaseService {
     /**
      * 扫描全表
      * */
-    <T> List<T> scanAll(String nameSpace, String tableName, Class<T> clazz) throws ItaojinHBaseException;
+    <T> List<T> scanAll(Class<T> clazz) throws ItaojinHBaseException;
 
 }

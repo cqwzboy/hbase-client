@@ -23,5 +23,9 @@ public class HBaseErrorCode {
      * 删除数据失败
      * */
     public static final int DELETE_FAILED = 103;
+    /**
+     * HBaseEntity注解必须指定table属性
+     * */
+    public static final int HBASE_ENTITY_MUST_HAS_TABLE = 104;
 
 }

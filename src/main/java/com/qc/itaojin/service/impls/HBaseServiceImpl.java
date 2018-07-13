@@ -160,17 +160,29 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
     }
 
     @Override
-    public <T> List<T> scanAll(String nameSpace, String tableName, Class<T> clazz) throws ItaojinHBaseException {
-        Assert.hasLength(nameSpace, "nameSpace must not be null");
-        Assert.hasLength(tableName, "tableName must not be null");
+    public <T> List<T> scanAll(Class<T> clazz) throws ItaojinHBaseException {
         Assert.notNull(clazz, "clazz must not be null");
         ReflectUtils.isAnnotationPresent(clazz, HBaseEntity.class);
+
+        String tableName = "";
+        Annotation[] clazzDeclaredAnnotations = clazz.getDeclaredAnnotations();
+        for (Annotation clazzDeclaredAnnotation : clazzDeclaredAnnotations) {
+            if(clazzDeclaredAnnotation.annotationType().equals(HBaseEntity.class)){
+                tableName = ((HBaseEntity)clazzDeclaredAnnotation).table();
+                break;
+            }
+        }
+
+        if(StringUtils.isBlank(tableName)){
+            throwException(HBaseErrorCode.HBASE_ENTITY_MUST_HAS_TABLE, new Exception("annotation HBaseEntity's table must not be null "), "");
+        }
 
         HTable hTable = null;
         ResultScanner resultScanner = null;
 
         try{
-            hTable = getHTable(buildTableName(nameSpace, tableName));
+            hTable = getHTable(tableName);
+            log.info("hbase table is {}", tableName);
             Scan scan = new Scan();
             resultScanner = hTable.getScanner(scan);
 
@@ -217,7 +229,7 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
 
             return list;
         } catch (Exception e) {
-            throwException(HBaseErrorCode.UPDATE_FAILED, e, StringUtils.contact(nameSpace, ":", tableName));
+            throwException(HBaseErrorCode.UPDATE_FAILED, e, tableName);
         } finally {
             closeHTable(hTable);
             closeResultScanner(resultScanner);
