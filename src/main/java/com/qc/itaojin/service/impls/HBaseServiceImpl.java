@@ -164,17 +164,13 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
         Assert.notNull(clazz, "clazz must not be null");
         ReflectUtils.isAnnotationPresent(clazz, HBaseEntity.class);
 
-        String tableName = "";
+        String tableName = null;
         Annotation[] clazzDeclaredAnnotations = clazz.getDeclaredAnnotations();
         for (Annotation clazzDeclaredAnnotation : clazzDeclaredAnnotations) {
             if(clazzDeclaredAnnotation.annotationType().equals(HBaseEntity.class)){
                 tableName = ((HBaseEntity)clazzDeclaredAnnotation).table();
                 break;
             }
-        }
-
-        if(StringUtils.isBlank(tableName)){
-            throwException(HBaseErrorCode.HBASE_ENTITY_MUST_HAS_TABLE, new Exception("annotation HBaseEntity's table must not be null "), "");
         }
 
         HTable hTable = null;
