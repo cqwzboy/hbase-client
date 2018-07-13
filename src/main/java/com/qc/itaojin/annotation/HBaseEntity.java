@@ -7,6 +7,6 @@ import java.lang.annotation.*;
 @Documented
 public @interface HBaseEntity {
 
-    String table() default "";
+    String table();
 
 }
