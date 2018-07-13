@@ -4,12 +4,11 @@ import com.qc.itaojin.annotation.HBaseColumn;
 import com.qc.itaojin.annotation.HBaseEntity;
 import com.qc.itaojin.common.HBaseErrorCode;
 import com.qc.itaojin.exception.ItaojinHBaseException;
-import com.qc.itaojin.service.HBaseBaseService;
 import com.qc.itaojin.service.IHBaseService;
+import com.qc.itaojin.service.common.HBaseBaseServiceImpl;
 import com.qc.itaojin.util.ReflectUtils;
 import com.qc.itaojin.util.ReflectionUtils;
 import com.qc.itaojin.util.StringUtils;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.TableName;
@@ -26,55 +25,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Created by fuqinqin on 2018/7/2.
+ * @desc
+ * @author fuqinqin
+ * @date 2018-07-14
  */
-@Data
 @Slf4j
-public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService {
-
-    private static final String DEFAULT_FAMILY = "f1";
-
-    ThreadLocal<Connection> connectionThreadLocal = new ThreadLocal<>();
-
-    ThreadLocal<Boolean> useSingleConn = new ThreadLocal<>();
-
-    public HBaseServiceImpl(){
-        useSingleConn.set(false);
-    }
-
-    /**
-     * 列族
-     * */
-    private String family = DEFAULT_FAMILY;
-
-
-    private Connection getConn(){
-        // 同一线程，较多使用Hbase连接时，可以采用始终使用单一连接的方案
-        if(useSingleConn.get()){
-            if(connectionThreadLocal.get() == null){
-                connectionThreadLocal.set(pool.getConn());
-            }
-
-            return connectionThreadLocal.get();
-        }
-
-        return pool.getConn();
-    }
-
-    @Override
-    public void useSingleConn() {
-        this.useSingleConn.set(true);
-    }
-
-    @Override
-    public void closeSingleConn(){
-        if(connectionThreadLocal.get() != null){
-            pool.close(connectionThreadLocal.get());
-            connectionThreadLocal.set(null);
-        }
-
-        this.useSingleConn.set(false);
-    }
+public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseService {
 
     @Override
     public void updateVersions(String nameSpace, String table, String family, int versions) throws ItaojinHBaseException {
@@ -87,9 +43,10 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
 
         table = StringUtils.contact(nameSpace, ":", table);
         Connection connection = null;
+        Admin admin = null;
         try {
             connection = getConn();
-            Admin admin = connection.getAdmin();
+            admin = connection.getAdmin();
             TableName tableName = TableName.valueOf(table);
             if(admin.tableExists(tableName)){
                 HColumnDescriptor hColumnDescriptor = new HColumnDescriptor(family);
@@ -104,8 +61,9 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
         } catch (IOException e) {
             throwException(HBaseErrorCode.UPDATE_VERSIONS_FAILED, e, table);
         } finally {
-            if(!useSingleConn.get() && connection!=null){
-                pool.close(connection);
+            if(!useSingleConn.get()){
+                closeConn(connection);
+                closeAdmin(admin);
             }
         }
     }

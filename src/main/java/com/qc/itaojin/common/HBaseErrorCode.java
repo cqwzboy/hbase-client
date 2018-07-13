@@ -24,8 +24,12 @@ public class HBaseErrorCode {
      * */
     public static final int DELETE_FAILED = 103;
     /**
-     * HBaseEntity注解必须指定table属性
+     * NameSpace已经存在
      * */
-    public static final int HBASE_ENTITY_MUST_HAS_TABLE = 104;
+    public static final int NAMESPACE_ALREADY_EXISTS = 104;
+    /**
+     * 创建命名空间失败
+     * */
+    public static final int CREATE_NAMESPACE_FAILED = 105;
 
 }

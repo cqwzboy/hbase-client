@@ -10,17 +10,7 @@ import java.util.Map;
  * @author fuqinqin
  * @date 2018-07-02
  */
-public interface IHBaseService {
-
-    /**
-     * 使用单一连接
-     * */
-    void useSingleConn();
-
-    /**
-     * 销毁连接
-     * */
-    void closeSingleConn();
+public interface IHBaseService extends IBaseService{
 
     /**
      * 插入/修改 数据，所有的列数据都放在 f1 列族下
