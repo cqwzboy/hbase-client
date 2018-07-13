@@ -1,10 +1,13 @@
 package com.qc.itaojin.service.impls;
 
+import com.qc.itaojin.annotation.HBaseColumn;
+import com.qc.itaojin.annotation.HBaseEntity;
 import com.qc.itaojin.common.HBaseErrorCode;
 import com.qc.itaojin.exception.ItaojinHBaseException;
 import com.qc.itaojin.service.HBaseBaseService;
 import com.qc.itaojin.service.IHBaseService;
 import com.qc.itaojin.util.ReflectUtils;
+import com.qc.itaojin.util.ReflectionUtils;
 import com.qc.itaojin.util.StringUtils;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +16,9 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.util.Assert;
-import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -161,6 +164,7 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
         Assert.hasLength(nameSpace, "nameSpace must not be null");
         Assert.hasLength(tableName, "tableName must not be null");
         Assert.notNull(clazz, "clazz must not be null");
+        ReflectUtils.isAnnotationPresent(clazz, HBaseEntity.class);
 
         HTable hTable = null;
         ResultScanner resultScanner = null;
@@ -181,16 +185,31 @@ public class HBaseServiceImpl extends HBaseBaseService implements IHBaseService 
                 T t = clazz.newInstance();
                 for (Field field : fields) {
                     String fieldName = field.getName();
-                    String set = ReflectUtils.buildSet(fieldName);
-                    // trans to hump format
-                    fieldName = StringUtils.converseToHump(fieldName);
+                    String setMethodName = ReflectUtils.buildSet(fieldName);
+
+                    // whether use HBaseColumn
+                    if(field.isAnnotationPresent(HBaseColumn.class)){
+                        // get all annotations
+                        Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
+                        anno:for (Annotation fieldAnnotation : fieldAnnotations) {
+                            if(fieldAnnotation.annotationType().equals(HBaseColumn.class)){
+                                fieldName = ((HBaseColumn)fieldAnnotation).value();
+                                break anno;
+                            }
+                        }
+                    }else{
+                        // trans to hump format
+                        fieldName = StringUtils.converseToHump(fieldName);
+                    }
+
+
                     byte[] bys = result.getValue(Bytes.toBytes("f1"), Bytes.toBytes(fieldName));
                     if(bys == null){
                         continue;
                     }
 
                     String value = new String(bys);
-                    Method method = ReflectionUtils.findMethod(clazz, set, ReflectUtils.mapClass(field.getType()));
+                    Method method = ReflectionUtils.findMethod(clazz, setMethodName, ReflectUtils.mapClass(field.getType()));
                     method.invoke(t, ReflectUtils.transValue(field, value));
                 }
                 list.add(t);
