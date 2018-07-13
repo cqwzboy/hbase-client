@@ -33,7 +33,6 @@ public class ItaojinHBaseAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public IHBaseService ihBaseService(){
-        show();
         IHBaseService hBaseService = new HBaseServiceImpl();
         ((HBaseServiceImpl) hBaseService).setPool(hBaseConnectionPool());
         return hBaseService;
@@ -50,7 +49,7 @@ public class ItaojinHBaseAutoConfiguration {
         return hBaseConnectionPool;
     }
 
-    private void show(){
+    private static void show(){
         String pak = "com.qc.itaojin.canalclient.test";
         URL url = ItaojinHBaseAutoConfiguration.class.getClassLoader().getResource("");
         String absolutePath = url.getPath();
