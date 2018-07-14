@@ -33,8 +33,13 @@ public class HBaseDDLServiceImpl extends HBaseBaseServiceImpl implements IHBaseD
         try {
             connection = getConn();
             admin = connection.getAdmin();
-            if(admin.getNamespaceDescriptor(nameSpace) != null){
-                throwException(HBaseErrorCode.NAMESPACE_ALREADY_EXISTS, new Exception(String.format("namespace %s already exists", nameSpace)));
+            try{
+                admin.getNamespaceDescriptor(nameSpace);
+                throwException(HBaseErrorCode.NAMESPACE_ALREADY_EXISTS,
+                        new Exception(String.format("namespace %s already exists",
+                                nameSpace)));
+            } catch (Exception inner){
+
             }
             NamespaceDescriptor namespaceDescriptor = NamespaceDescriptor.create(nameSpace).build();
             admin.createNamespace(namespaceDescriptor);
