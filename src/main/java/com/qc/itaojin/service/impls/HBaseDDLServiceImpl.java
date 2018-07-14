@@ -5,10 +5,7 @@ import com.qc.itaojin.exception.ItaojinHBaseException;
 import com.qc.itaojin.service.IHBaseDDLService;
 import com.qc.itaojin.service.common.HBaseBaseServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.NamespaceDescriptor;
-import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.springframework.util.Assert;
@@ -38,7 +35,7 @@ public class HBaseDDLServiceImpl extends HBaseBaseServiceImpl implements IHBaseD
                 throwException(HBaseErrorCode.NAMESPACE_ALREADY_EXISTS,
                         new Exception(String.format("namespace %s already exists",
                                 nameSpace)));
-            } catch (Exception inner){
+            } catch (NamespaceExistException inner){
 
             }
             NamespaceDescriptor namespaceDescriptor = NamespaceDescriptor.create(nameSpace).build();
