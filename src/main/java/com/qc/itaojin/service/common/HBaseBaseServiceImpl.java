@@ -28,13 +28,6 @@ public class HBaseBaseServiceImpl extends BaseServiceImpl implements IBaseServic
 
     protected ThreadLocal<Boolean> useSingleConn = new ThreadLocal<>();
 
-    private static final String DEFAULT_FAMILY = "f1";
-
-    /**
-     * 列族
-     * */
-    protected String family = DEFAULT_FAMILY;
-
     public HBaseBaseServiceImpl(){
         useSingleConn.set(false);
     }

@@ -2,6 +2,8 @@ package com.qc.itaojin.service.impls;
 
 import com.qc.itaojin.annotation.HBaseColumn;
 import com.qc.itaojin.annotation.HBaseEntity;
+import com.qc.itaojin.annotation.HBaseFamily;
+import com.qc.itaojin.common.HBaseConstants;
 import com.qc.itaojin.common.HBaseErrorCode;
 import com.qc.itaojin.exception.ItaojinHBaseException;
 import com.qc.itaojin.service.IHBaseService;
@@ -84,7 +86,7 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
                 Put put = new Put(toBytes(rowKey));
                 String columnName = entry.getKey();
                 String columnValue = entry.getValue();
-                put.addColumn(toBytes(family), toBytes(columnName), toBytes(columnValue));
+                put.addColumn(toBytes(HBaseConstants.DEFAULT_FAMILY), toBytes(columnName), toBytes(columnValue));
                 hTable.put(put);
             }
         } catch (IOException e) {
@@ -150,17 +152,32 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
             for (Result result : resultScanner) {
                 T t = clazz.newInstance();
                 for (Field field : fields) {
+                    // family name
+                    String familyName = HBaseConstants.DEFAULT_FAMILY;
+                    // field name
                     String fieldName = field.getName();
                     String setMethodName = ReflectUtils.buildSet(fieldName);
+
+                    // whether use HBaseFamily
+                    if(field.isAnnotationPresent(HBaseFamily.class)){
+                        // get all annotations
+                        Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
+                        family_anno:for (Annotation fieldAnnotation : fieldAnnotations) {
+                            if(fieldAnnotation.annotationType().equals(HBaseFamily.class)){
+                                familyName = ((HBaseFamily)fieldAnnotation).value();
+                                break family_anno;
+                            }
+                        }
+                    }
 
                     // whether use HBaseColumn
                     if(field.isAnnotationPresent(HBaseColumn.class)){
                         // get all annotations
                         Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
-                        anno:for (Annotation fieldAnnotation : fieldAnnotations) {
+                        field_anno:for (Annotation fieldAnnotation : fieldAnnotations) {
                             if(fieldAnnotation.annotationType().equals(HBaseColumn.class)){
                                 fieldName = ((HBaseColumn)fieldAnnotation).value();
-                                break anno;
+                                break field_anno;
                             }
                         }
                     }else{
@@ -169,7 +186,7 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
                     }
 
 
-                    byte[] bys = result.getValue(Bytes.toBytes("f1"), Bytes.toBytes(fieldName));
+                    byte[] bys = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(fieldName));
                     if(bys == null){
                         continue;
                     }
