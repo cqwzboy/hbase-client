@@ -4,7 +4,7 @@ import com.qc.itaojin.common.HBaseConstants;
 
 import java.lang.annotation.*;
 
-@Target({ElementType.FIELD})
+@Target({ElementType.TYPE, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface HBaseFamily {

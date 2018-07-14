@@ -19,7 +19,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.springframework.util.Assert;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -124,14 +123,23 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
         Assert.notNull(clazz, "clazz must not be null");
         ReflectUtils.isAnnotationPresent(clazz, HBaseEntity.class);
 
-        String tableName = null;
-        Annotation[] clazzDeclaredAnnotations = clazz.getDeclaredAnnotations();
-        for (Annotation clazzDeclaredAnnotation : clazzDeclaredAnnotations) {
-            if(clazzDeclaredAnnotation.annotationType().equals(HBaseEntity.class)){
-                tableName = ((HBaseEntity)clazzDeclaredAnnotation).table();
-                break;
-            }
+        // analyze table name
+        String tableName = ReflectUtils.analyzeClassAnnotation(clazz, HBaseEntity.class, "table");
+
+        // 是否统一配置HBaseFamily
+        boolean isFamilyUnifiedConfiguration = false;
+
+        /**
+         *  analyze family name.
+         *  if HBaseFamily annotation is used on Class, the HBaseFamily annotation used on
+         *  field will be invalid.
+         * */
+        String familyName = ReflectUtils.analyzeClassAnnotation(clazz, HBaseFamily.class, "value");
+
+        if(StringUtils.isNotBlank(familyName)){
+            isFamilyUnifiedConfiguration = true;
         }
+
 
         HTable hTable = null;
         ResultScanner resultScanner = null;
@@ -153,9 +161,11 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
                 T t = clazz.newInstance();
                 for (Field field : fields) {
                     // family name
-                    String familyName = ReflectUtils.analyzeFieldAnnotation(field, HBaseFamily.class, "value");
-                    if(StringUtils.isBlank(familyName)){
-                        familyName = HBaseConstants.DEFAULT_FAMILY;
+                    if(!isFamilyUnifiedConfiguration){
+                        familyName = ReflectUtils.analyzeFieldAnnotation(field, HBaseFamily.class, "value");
+                        if(StringUtils.isBlank(familyName)){
+                            familyName = HBaseConstants.DEFAULT_FAMILY;
+                        }
                     }
 
                     // field name
