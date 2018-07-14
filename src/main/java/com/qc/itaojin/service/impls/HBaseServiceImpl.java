@@ -153,38 +153,19 @@ public class HBaseServiceImpl extends HBaseBaseServiceImpl implements IHBaseServ
                 T t = clazz.newInstance();
                 for (Field field : fields) {
                     // family name
-                    String familyName = HBaseConstants.DEFAULT_FAMILY;
+                    String familyName = ReflectUtils.analyzeFieldAnnotation(field, HBaseFamily.class, "value");
+                    if(StringUtils.isBlank(familyName)){
+                        familyName = HBaseConstants.DEFAULT_FAMILY;
+                    }
+
                     // field name
-                    String fieldName = field.getName();
-                    String setMethodName = ReflectUtils.buildSet(fieldName);
-
-                    // whether use HBaseFamily
-                    if(field.isAnnotationPresent(HBaseFamily.class)){
-                        // get all annotations
-                        Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
-                        family_anno:for (Annotation fieldAnnotation : fieldAnnotations) {
-                            if(fieldAnnotation.annotationType().equals(HBaseFamily.class)){
-                                familyName = ((HBaseFamily)fieldAnnotation).value();
-                                break family_anno;
-                            }
-                        }
+                    String fieldName = ReflectUtils.analyzeFieldAnnotation(field, HBaseColumn.class, "value");
+                    if(StringUtils.isBlank(fieldName)){
+                        fieldName = StringUtils.converseToHump(field.getName());
                     }
 
-                    // whether use HBaseColumn
-                    if(field.isAnnotationPresent(HBaseColumn.class)){
-                        // get all annotations
-                        Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
-                        field_anno:for (Annotation fieldAnnotation : fieldAnnotations) {
-                            if(fieldAnnotation.annotationType().equals(HBaseColumn.class)){
-                                fieldName = ((HBaseColumn)fieldAnnotation).value();
-                                break field_anno;
-                            }
-                        }
-                    }else{
-                        // trans to hump format
-                        fieldName = StringUtils.converseToHump(fieldName);
-                    }
-
+                    // set method name
+                    String setMethodName = ReflectUtils.buildSet(field.getName());
 
                     byte[] bys = result.getValue(Bytes.toBytes(familyName), Bytes.toBytes(fieldName));
                     if(bys == null){
